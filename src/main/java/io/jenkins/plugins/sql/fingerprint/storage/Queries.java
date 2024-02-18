@@ -28,15 +28,30 @@ public class Queries {
     static final String SELECT_FINGERPRINT_JOB_BUILD_RELATION_COUNT = "select_fingerprint_job_build_relation_count";
     static final String SELECT_FINGERPRINT_FACET_RELATION_COUNT = "select_fingerprint_facet_relation_count";
 
-    private static final String propertiesFileName = "Queries.properties";
-    private static Properties properties;
+    private static Properties postgresqlProperties;
+    private static Properties mysqlProperties;
+    private static Properties mariaDbProperties;
 
     static {
-        try (InputStream inputStream = Queries.class.getResourceAsStream(propertiesFileName)) {
-            properties = new Properties();
-            properties.load(inputStream);
+
+        // Load all properties
+        try (InputStream inputStream = Queries.class.getResourceAsStream("postgresql_Queries.properties")) {
+            postgresqlProperties = new Properties();
+            postgresqlProperties.load(inputStream);
         } catch (IOException e) {
-            properties = null;
+            postgresqlProperties = null;
+        }
+        try (InputStream inputStream = Queries.class.getResourceAsStream("mariadb_Queries.properties")) {
+            mariaDbProperties = new Properties();
+            mariaDbProperties.load(inputStream);
+        } catch (IOException e) {
+            mariaDbProperties = null;
+        }
+        try (InputStream inputStream = Queries.class.getResourceAsStream("mysql_Queries.properties")) {
+            mysqlProperties = new Properties();
+            mysqlProperties.load(inputStream);
+        } catch (IOException e) {
+            mysqlProperties = null;
         }
     }
 
@@ -44,9 +59,9 @@ public class Queries {
      * Returns the SQL query with the given query name from {@link #propertiesFileName}.
      */
     static @NonNull String getQuery(@NonNull String query) throws SQLException {
-        if (properties == null) {
-            throw new SQLException("Unable to load property file: " + propertiesFileName);
+        if (postgresqlProperties == null) {
+            throw new SQLException("Unable to load property file: " + postgresqlProperties);
         }
-        return properties.getProperty(query);
+        return postgresqlProperties.getProperty(query);
     }
 }

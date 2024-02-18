@@ -34,7 +34,9 @@ public class DatabaseSchemaLoader {
                         .baselineOnMigrate(true)
                         .table("fingerprint_flyway_schema_history")
                         .dataSource(dataSource)
-                        .locations("db/migration/postgres")
+                        .locations("db/migration/"
+                                + database.getDescriptor().getDisplayName().toLowerCase())
+                        .failOnMissingLocations(true)
                         .load();
                 flyway.migrate();
                 MIGRATED = true;
