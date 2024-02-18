@@ -12,5 +12,5 @@ public class ColumnName {
     static final String USAGES = "usages";
     static final String FACETS = "facets";
     static final String TOTAL = "total";
-    static final String EXISTS = "exists";
+    static final String FINGERPRINT_EXISTS = "fingerprint_exists";
 }

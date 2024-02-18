@@ -1,6 +1,6 @@
 package io.jenkins.plugins.sql.fingerprint.storage;
 
-import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.text.IsEqualCompressingWhiteSpace.equalToCompressingWhiteSpace;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
@@ -98,9 +98,10 @@ public class SqlFingerprintStorageTest {
         assertThat(fingerprintStorage, instanceOf(SqlFingerprintStorage.class));
     }
 
-    @Test
-    public void testSave(JenkinsRule j) throws IOException, SQLException {
-        setConfiguration("postgres");
+    @ParameterizedTest
+    @MethodSource("databases")
+    public void testSave(String database, JenkinsRule j) throws IOException, SQLException {
+        setConfiguration(database);
 
         String instanceId = Util.getDigestOf(
                 new ByteArrayInputStream(InstanceIdentity.get().getPublic().getEncoded()));
@@ -112,7 +113,7 @@ public class SqlFingerprintStorageTest {
         try (Connection connection =
                 SqlFingerprintStorage.get().getConnectionSupplier().connection()) {
             try (PreparedStatement preparedStatement =
-                    connection.prepareStatement(Queries.getQuery(Queries.SELECT_FINGERPRINT))) {
+                    connection.prepareStatement(Queries.getQuery(database, Queries.SELECT_FINGERPRINT))) {
                 preparedStatement.setString(1, id);
                 preparedStatement.setString(2, instanceId);
                 ResultSet resultSet = preparedStatement.executeQuery();
@@ -124,20 +125,21 @@ public class SqlFingerprintStorageTest {
                 assertThat(resultSet.getString(ColumnName.ORIGINAL_JOB_NAME), is(nullValue()));
                 assertThat(resultSet.getString(ColumnName.ORIGINAL_JOB_BUILD_NUMBER), is(nullValue()));
                 assertThat(
-                        resultSet.getString(ColumnName.USAGES),
-                        is(equalTo("[{\"job\" : \"a\", \"build_number\" : 3}]")));
+                        resultSet.getString(ColumnName.USAGES).replaceAll(" ", ""),
+                        is(equalToCompressingWhiteSpace("[{\"job\":\"a\",\"build_number\":3}]")));
                 assertThat(
-                        resultSet.getString(ColumnName.FACETS),
-                        is(equalTo("[{"
-                                + "\"facet_name\" : \"io.jenkins.plugins.postgresql.PostgreSQLFingerprintStorageTest$TestFacet\", "
-                                + "\"facet_entry\" : {\"property\": \"a\", \"timestamp\": 3}}]")));
+                        resultSet.getString(ColumnName.FACETS).replaceAll(" ", ""),
+                        is(equalToCompressingWhiteSpace("[{"
+                                + "\"facet_name\":\"io.jenkins.plugins.sql.fingerprint.storage.SqlFingerprintStorageTest$TestFacet\","
+                                + "\"facet_entry\":{\"property\":\"a\",\"timestamp\":3}}]")));
             }
         }
     }
 
-    @Test
-    public void roundTripEmptyFingerprint(JenkinsRule j) throws IOException {
-        setConfiguration("postgres");
+    @ParameterizedTest
+    @MethodSource("databases")
+    public void roundTripEmptyFingerprint(String database, JenkinsRule j) throws IOException {
+        setConfiguration(database);
         String id = Util.getDigestOf("roundTrip");
 
         Fingerprint fingerprintSaved = new Fingerprint(null, "foo.jar", Util.fromHexString(id));
@@ -147,9 +149,10 @@ public class SqlFingerprintStorageTest {
         assertThat(fingerprintSaved.toString(), is(Matchers.equalTo(fingerprintLoaded.toString())));
     }
 
-    @Test
-    public void roundTripWithMultipleFingerprints(JenkinsRule j) throws IOException {
-        setConfiguration("postgres");
+    @ParameterizedTest
+    @MethodSource("databases")
+    public void roundTripWithMultipleFingerprints(String database, JenkinsRule j) throws IOException {
+        setConfiguration(database);
 
         String[] fingerprintIds = {
             Util.getDigestOf("id1"), Util.getDigestOf("id2"), Util.getDigestOf("id3"),
@@ -171,9 +174,10 @@ public class SqlFingerprintStorageTest {
         }
     }
 
-    @Test
-    public void roundTripWithMultipleUsages(JenkinsRule j) throws IOException {
-        setConfiguration("postgres");
+    @ParameterizedTest
+    @MethodSource("databases")
+    public void roundTripWithMultipleUsages(String database, JenkinsRule j) throws IOException {
+        setConfiguration(database);
         String id = Util.getDigestOf("roundTripWithUsages");
 
         Fingerprint fingerprintSaved = new Fingerprint(null, "foo.jar", Util.fromHexString(id));
@@ -206,17 +210,19 @@ public class SqlFingerprintStorageTest {
                         fingerprintLoaded.getPersistedFacets().toArray()));
     }
 
-    @Test
-    public void loadingNonExistentFingerprintShouldReturnNull(JenkinsRule j) throws IOException {
-        setConfiguration("postgres");
+    @ParameterizedTest
+    @MethodSource("databases")
+    public void loadingNonExistentFingerprintShouldReturnNull(String database, JenkinsRule j) throws IOException {
+        setConfiguration(database);
         String id = Util.getDigestOf("loadingNonExistentFingerprintShouldReturnNull");
         Fingerprint fingerprint = Fingerprint.load(id);
         assertThat(fingerprint, is(Matchers.nullValue()));
     }
 
-    @Test
-    public void shouldDeleteFingerprint(JenkinsRule j) throws IOException {
-        setConfiguration("postgres");
+    @ParameterizedTest
+    @MethodSource("databases")
+    public void shouldDeleteFingerprint(String database, JenkinsRule j) throws IOException {
+        setConfiguration(database);
         String id = Util.getDigestOf("shouldDeleteFingerprint");
         new Fingerprint(null, "foo.jar", Util.fromHexString(id));
         Fingerprint.delete(id);
@@ -227,9 +233,10 @@ public class SqlFingerprintStorageTest {
         assertThat(fingerprintLoaded, is(Matchers.nullValue()));
     }
 
-    @Test
-    public void testIsReady(JenkinsRule j) throws IOException {
-        setConfiguration("postgres");
+    @ParameterizedTest
+    @MethodSource("databases")
+    public void testIsReady(String database, JenkinsRule j) throws IOException {
+        setConfiguration(database);
         FingerprintStorage fingerprintStorage = FingerprintStorage.get();
         assertThat(fingerprintStorage.isReady(), is(false));
         String id = Util.getDigestOf("testIsReady");

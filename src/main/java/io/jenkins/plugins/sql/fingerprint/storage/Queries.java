@@ -20,10 +20,6 @@ public class Queries {
     static final String SELECT_FINGERPRINT = "select_fingerprint";
     static final String SELECT_FINGERPRINT_EXISTS_FOR_INSTANCE = "select_fingerprint_exists_for_instance";
     static final String DELETE_FINGERPRINT = "delete_fingerprint";
-    static final String CHECK_FINGERPRINT_TABLE_EXISTS = "check_fingerprint_table_exists";
-    static final String CHECK_FINGERPRINT_JOB_BUILD_RELATION_TABLE_EXISTS =
-            "check_fingerprint_job_build_relation_table_exists";
-    static final String CHECK_FINGERPRINT_FACET_RELATION_TABLE_EXISTS = "check_fingerprint_facet_relation_table_exists";
     static final String SELECT_FINGERPRINT_COUNT = "select_fingerprint_count";
     static final String SELECT_FINGERPRINT_JOB_BUILD_RELATION_COUNT = "select_fingerprint_job_build_relation_count";
     static final String SELECT_FINGERPRINT_FACET_RELATION_COUNT = "select_fingerprint_facet_relation_count";
@@ -58,10 +54,26 @@ public class Queries {
     /**
      * Returns the SQL query with the given query name from {@link #propertiesFileName}.
      */
-    static @NonNull String getQuery(@NonNull String query) throws SQLException {
+    static @NonNull String getQuery(String database, @NonNull String query) throws SQLException {
         if (postgresqlProperties == null) {
             throw new SQLException("Unable to load property file: " + postgresqlProperties);
         }
-        return postgresqlProperties.getProperty(query);
+        if (mariaDbProperties == null) {
+            throw new SQLException("Unable to load property file: " + mariaDbProperties);
+        }
+        if (mysqlProperties == null) {
+            throw new SQLException("Unable to load property file: " + mysqlProperties);
+        }
+
+        switch (database) {
+            case "postgresql":
+                return postgresqlProperties.getProperty(query);
+            case "mariadb":
+                return mariaDbProperties.getProperty(query);
+            case "mysql":
+                return mysqlProperties.getProperty(query);
+            default:
+                throw new SQLException("Unknown database: " + database);
+        }
     }
 }

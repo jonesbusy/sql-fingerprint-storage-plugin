@@ -58,6 +58,14 @@ public class SqlFingerprintStorage extends FingerprintStorage {
         return connectionSupplier;
     }
 
+    private String getDatabaseType() {
+        return getConnectionSupplier()
+                .database()
+                .getDescriptor()
+                .getDisplayName()
+                .toLowerCase();
+    }
+
     /**
      * Saves the given fingerprint inside the PostgreSQL instance.
      */
@@ -68,7 +76,7 @@ public class SqlFingerprintStorage extends FingerprintStorage {
             delete(fingerprint.getHashString(), connection);
 
             try (PreparedStatement preparedStatement =
-                    connection.prepareStatement(Queries.getQuery(Queries.INSERT_FINGERPRINT))) {
+                    connection.prepareStatement(Queries.getQuery(getDatabaseType(), Queries.INSERT_FINGERPRINT))) {
                 preparedStatement.setString(1, fingerprint.getHashString());
                 preparedStatement.setString(2, instanceId);
                 preparedStatement.setTimestamp(
@@ -95,7 +103,7 @@ public class SqlFingerprintStorage extends FingerprintStorage {
 
                     for (int buildNumber : rangeSet.listNumbers()) {
                         try (PreparedStatement preparedStatement = connection.prepareStatement(
-                                Queries.getQuery(Queries.INSERT_FINGERPRINT_JOB_BUILD_RELATION))) {
+                                Queries.getQuery(getDatabaseType(), Queries.INSERT_FINGERPRINT_JOB_BUILD_RELATION))) {
                             preparedStatement.setString(1, fingerprint.getHashString());
                             preparedStatement.setString(2, instanceId);
                             preparedStatement.setString(3, jobName);
@@ -113,8 +121,8 @@ public class SqlFingerprintStorage extends FingerprintStorage {
                 String fingerprintFacetEntry =
                         fingerprintFacetJSON.getJSONObject(fingerprintFacetName).toString();
 
-                try (PreparedStatement preparedStatement =
-                        connection.prepareStatement(Queries.getQuery(Queries.INSERT_FINGERPRINT_FACET_RELATION))) {
+                try (PreparedStatement preparedStatement = connection.prepareStatement(
+                        Queries.getQuery(getDatabaseType(), Queries.INSERT_FINGERPRINT_FACET_RELATION))) {
                     preparedStatement.setString(1, fingerprint.getHashString());
                     preparedStatement.setString(2, instanceId);
                     preparedStatement.setString(3, fingerprintFacetName);
@@ -127,7 +135,7 @@ public class SqlFingerprintStorage extends FingerprintStorage {
 
             connection.commit();
         } catch (SQLException e) {
-            LOGGER.log(Level.WARNING, "PostgreSQL failed in saving fingerprint: " + fingerprint.toString(), e);
+            LOGGER.log(Level.WARNING, "SQL Storage failed in saving fingerprint: " + fingerprint.toString(), e);
             throw new IOException(e);
         }
     }
@@ -139,7 +147,7 @@ public class SqlFingerprintStorage extends FingerprintStorage {
     public @CheckForNull Fingerprint load(@NonNull String id) throws IOException {
         try (Connection connection = getConnectionSupplier().connection();
                 PreparedStatement preparedStatement =
-                        connection.prepareStatement(Queries.getQuery(Queries.SELECT_FINGERPRINT))) {
+                        connection.prepareStatement(Queries.getQuery(getDatabaseType(), Queries.SELECT_FINGERPRINT))) {
 
             preparedStatement.setString(1, id);
             preparedStatement.setString(2, instanceId);
@@ -183,7 +191,7 @@ public class SqlFingerprintStorage extends FingerprintStorage {
 
     private void delete(@NonNull String id, @NonNull Connection connection) throws SQLException {
         try (PreparedStatement preparedStatement =
-                connection.prepareStatement(Queries.getQuery(Queries.DELETE_FINGERPRINT))) {
+                connection.prepareStatement(Queries.getQuery(getDatabaseType(), Queries.DELETE_FINGERPRINT))) {
             preparedStatement.setString(1, id);
             preparedStatement.setString(2, instanceId);
             preparedStatement.executeUpdate();
@@ -195,16 +203,16 @@ public class SqlFingerprintStorage extends FingerprintStorage {
      */
     public boolean isReady() {
         try (Connection connection = getConnectionSupplier().connection();
-                PreparedStatement preparedStatement =
-                        connection.prepareStatement(Queries.getQuery(Queries.SELECT_FINGERPRINT_EXISTS_FOR_INSTANCE))) {
+                PreparedStatement preparedStatement = connection.prepareStatement(
+                        Queries.getQuery(getDatabaseType(), Queries.SELECT_FINGERPRINT_EXISTS_FOR_INSTANCE))) {
             preparedStatement.setString(1, instanceId);
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
-                    return resultSet.getBoolean(ColumnName.EXISTS);
+                    return resultSet.getBoolean(ColumnName.FINGERPRINT_EXISTS);
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.WARNING, "Failed connecting to PostgreSQL.", e);
+            LOGGER.log(Level.WARNING, "Failed connecting to database server for fingerprint", e);
         }
         return false;
     }

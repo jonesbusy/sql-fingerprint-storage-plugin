@@ -1,7 +1,7 @@
 CREATE TABLE FINGERPRINT 
   (FINGERPRINT_ID              VARCHAR(256)   NOT NULL,
    INSTANCE_ID                 CHAR(32)       NOT NULL,
-   TIMESTAMP                   TIMESTAMP      NOT NULL,
+   TIMESTAMP                   TIMESTAMP(3)   NOT NULL,
    FILENAME                    VARCHAR(256)   NOT NULL,
    ORIGINAL_JOB_NAME           VARCHAR(256),
    ORIGINAL_JOB_BUILD_NUMBER   INT,
