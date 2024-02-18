@@ -1,0 +1,4 @@
+<?jelly escape-by-default='true'?>
+<div>
+    This plugin allows configuring SQL database as an external fingerprint storage.
+</div>

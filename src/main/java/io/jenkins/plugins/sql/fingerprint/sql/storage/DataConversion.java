@@ -1,0 +1,190 @@
+package io.jenkins.plugins.sql.fingerprint.sql.storage;
+
+import com.thoughtworks.xstream.converters.basic.DateConverter;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.model.Fingerprint;
+import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+
+/**
+ * Helper class for handling converting of data from and to different data structures.
+ */
+@Restricted({NoExternalUse.class})
+public class DataConversion {
+
+    private static final Logger LOGGER = Logger.getLogger(DataConversion.class.getName());
+    private static final DateConverter DATE_CONVERTER = new DateConverter();
+
+    static final String FINGERPRINT = "fingerprint";
+    static final String RANGES = "ranges";
+    static final String RANGE = "range";
+    static final String ID = "id";
+    static final String TIMESTAMP = "timestamp";
+    static final String FILENAME = "fileName";
+    static final String MD5SUM = "md5sum";
+    static final String FACETS = "facets";
+    static final String USAGES = "usages";
+    static final String ORIGINAL = "original";
+    static final String ORIGINAL_JOB_BUILD_NUMBER = "original_job_build_number";
+    static final String ORIGINAL_JOB_NAME = "original_job_name";
+    static final String NAME = "name";
+    static final String NUMBER = "number";
+    static final String STRING = "string";
+    static final String ENTRY = "entry";
+    static final String JOB = "job";
+    static final String BUILD_NUMBER = "build_number";
+    static final String FACET_NAME = "facet_name";
+    static final String FACET_ENTRY = "facet_entry";
+
+    static final String EMPTY_STRING = "";
+
+    /**
+     * Constructs the JSON for fingerprint from the given metadata about the fingerprint fetched from
+     * PostgreSQL.
+     * @param fingerprintMetadata See {@link DataConversion#extractFingerprintMetadata(String, Timestamp, String, String, String)}
+     * @param usageMetadata See {@link DataConversion#extractUsageMetadata(String)}
+     * @param facets See {@link DataConversion#extractFacets(String)}
+     * @return
+     */
+    static @NonNull String constructFingerprintJSON(
+            @NonNull Map<String, String> fingerprintMetadata,
+            @NonNull Map<String, Fingerprint.RangeSet> usageMetadata,
+            @NonNull JSONArray facets) {
+        JSONObject json = new JSONObject();
+        JSONObject fingerprint = new JSONObject();
+        JSONArray md5sum = new JSONArray();
+        JSONArray usages = new JSONArray();
+        JSONObject original = null;
+
+        if (fingerprintMetadata.get(ORIGINAL_JOB_BUILD_NUMBER) != null) {
+            original = new JSONObject();
+            original.put(NAME, fingerprintMetadata.get(ORIGINAL_JOB_NAME));
+            original.put(NUMBER, Integer.parseInt(fingerprintMetadata.get(ORIGINAL_JOB_BUILD_NUMBER)));
+        }
+
+        md5sum.put(fingerprintMetadata.get(ID));
+
+        if (facets.length() == 0) {
+            facets.put(EMPTY_STRING);
+        }
+
+        if (usageMetadata.size() != 0) {
+            JSONObject entry = new JSONObject();
+            JSONArray entryArray = new JSONArray();
+
+            for (Map.Entry<String, Fingerprint.RangeSet> usage : usageMetadata.entrySet()) {
+                JSONObject jobAndBuildNumber = new JSONObject();
+                jobAndBuildNumber.put(STRING, usage.getKey());
+                jobAndBuildNumber.put(RANGES, Fingerprint.RangeSet.ConverterImpl.serialize(usage.getValue()));
+
+                entryArray.put(jobAndBuildNumber);
+            }
+
+            entry.put(ENTRY, entryArray);
+            usages.put(entry);
+        } else {
+            usages.put(EMPTY_STRING);
+        }
+
+        fingerprint.put(TIMESTAMP, fingerprintMetadata.get(TIMESTAMP));
+        fingerprint.put(FILENAME, fingerprintMetadata.get(FILENAME));
+        fingerprint.put(MD5SUM, md5sum);
+        fingerprint.put(FACETS, facets);
+        fingerprint.put(USAGES, usages);
+        fingerprint.put(ORIGINAL, original);
+
+        json.put(FINGERPRINT, fingerprint);
+
+        LOGGER.fine("Fingerprint loaded: " + json.toString());
+        return json.toString();
+    }
+
+    /**
+     * Store Fingerprint metadata into a Map.
+     */
+    static @NonNull Map<String, String> extractFingerprintMetadata(
+            @NonNull String id,
+            Timestamp timestamp,
+            @NonNull String filename,
+            @CheckForNull String originalJobName,
+            @CheckForNull String originalJobBuildNumber) {
+        Map<String, String> fingerprintMetadata = new HashMap<>();
+
+        fingerprintMetadata.put(TIMESTAMP, DATE_CONVERTER.toString(new Date(timestamp.getTime())));
+        fingerprintMetadata.put(FILENAME, filename);
+        fingerprintMetadata.put(ID, id);
+        fingerprintMetadata.put(ORIGINAL_JOB_NAME, originalJobName);
+        fingerprintMetadata.put(ORIGINAL_JOB_BUILD_NUMBER, originalJobBuildNumber);
+
+        return Collections.unmodifiableMap(fingerprintMetadata);
+    }
+
+    /**
+     * Extracts the fingerprint's usage metadata (jobs and builds) obtained from PostgreSQL.
+     */
+    static @NonNull Map<String, Fingerprint.RangeSet> extractUsageMetadata(@CheckForNull String usagesAsJSONString) {
+        Map<String, Fingerprint.RangeSet> usageMetadata = new HashMap<>();
+
+        if (usagesAsJSONString != null) {
+            JSONArray usages = new JSONArray(usagesAsJSONString);
+
+            for (int i = 0; i < usages.length(); i++) {
+                JSONObject usage = usages.getJSONObject(i);
+
+                String jobName = usage.getString(JOB);
+                int buildNumber = usage.getInt(BUILD_NUMBER);
+
+                if (usageMetadata.containsKey(jobName)) {
+                    usageMetadata.get(jobName).add(buildNumber);
+                } else {
+                    Fingerprint.RangeSet rangeSet = new Fingerprint.RangeSet();
+                    rangeSet.add(buildNumber);
+                    usageMetadata.put(jobName, rangeSet);
+                }
+            }
+        }
+
+        return Collections.unmodifiableMap(usageMetadata);
+    }
+
+    /**
+     * Extracts the fingerprint's facet metadata obtained from PostgreSQL in the form of {@link ResultSet}.
+     */
+    static @NonNull JSONArray extractFacets(@CheckForNull String facetsAsJSONString) {
+        JSONArray facetsArray = new JSONArray();
+        JSONObject facetsObject = new JSONObject();
+
+        if (facetsAsJSONString != null) {
+            JSONArray facetsFromResultSet = new JSONArray(facetsAsJSONString);
+
+            for (int i = 0; i < facetsFromResultSet.length(); i++) {
+                JSONObject facetFromResultSet = facetsFromResultSet.getJSONObject(i);
+                String facetName = facetFromResultSet.getString(FACET_NAME);
+                if (facetName.equals(EMPTY_STRING)) {
+                    break;
+                }
+
+                if (facetsObject.has(facetName)) {
+                    facetsObject.getJSONArray(facetName).put(facetFromResultSet.getJSONObject(FACET_ENTRY));
+                } else {
+                    JSONArray facetEntries = new JSONArray();
+                    facetEntries.put(facetFromResultSet.getJSONObject(FACET_ENTRY));
+                    facetsObject.put(facetName, facetEntries);
+                }
+            }
+        }
+
+        facetsArray.put(facetsObject);
+        return facetsArray;
+    }
+}
