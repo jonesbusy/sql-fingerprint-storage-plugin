@@ -1,4 +1,4 @@
-package io.jenkins.plugins.sql.fingerprint.sql.storage;
+package io.jenkins.plugins.sql.fingerprint.storage;
 
 import static hudson.init.InitMilestone.SYSTEM_CONFIG_ADAPTED;
 

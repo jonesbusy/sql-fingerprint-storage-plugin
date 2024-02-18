@@ -1,4 +1,4 @@
-package io.jenkins.plugins.sql.fingerprint.sql.storage;
+package io.jenkins.plugins.sql.fingerprint.storage;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;

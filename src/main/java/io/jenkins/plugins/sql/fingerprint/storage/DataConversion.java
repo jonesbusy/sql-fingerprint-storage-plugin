@@ -1,4 +1,4 @@
-package io.jenkins.plugins.sql.fingerprint.sql.storage;
+package io.jenkins.plugins.sql.fingerprint.storage;
 
 import com.thoughtworks.xstream.converters.basic.DateConverter;
 import edu.umd.cs.findbugs.annotations.CheckForNull;

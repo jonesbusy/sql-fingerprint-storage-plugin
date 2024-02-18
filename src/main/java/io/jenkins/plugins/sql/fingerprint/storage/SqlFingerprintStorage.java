@@ -1,4 +1,4 @@
-package io.jenkins.plugins.sql.fingerprint.sql.storage;
+package io.jenkins.plugins.sql.fingerprint.storage;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -22,6 +22,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.fingerprints.FingerprintStorage;
 import jenkins.model.FingerprintFacet;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.main.modules.instance_identity.InstanceIdentity;
 import org.jenkinsci.plugins.database.Database;
 import org.jenkinsci.plugins.database.GlobalDatabaseConfiguration;
@@ -30,7 +31,7 @@ import org.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
- * Pluggable external fingerprint storage for fingerprints into PostgreSQL.
+ * Pluggable external fingerprint storage for fingerprints into SQL.
  */
 @Extension
 public class SqlFingerprintStorage extends FingerprintStorage {
@@ -259,5 +260,6 @@ public class SqlFingerprintStorage extends FingerprintStorage {
     }
 
     @Extension
+    @Symbol("sql")
     public static class DescriptorImpl extends SqlFingerprintStorageDescriptor {}
 }

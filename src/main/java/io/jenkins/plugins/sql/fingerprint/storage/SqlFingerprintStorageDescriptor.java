@@ -1,7 +1,6 @@
-package io.jenkins.plugins.sql.fingerprint.sql.storage;
+package io.jenkins.plugins.sql.fingerprint.storage;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import io.jenkins.plugins.sql.fingerprint.storage.Messages;
 import jenkins.fingerprints.FingerprintStorageDescriptor;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
