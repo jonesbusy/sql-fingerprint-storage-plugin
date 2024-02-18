@@ -24,7 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @WithJenkins
 @Testcontainers
-public class PostgreSQLSchemaInitializationTest {
+public class SqlSchemaInitializationTest {
 
     @Container
     public PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(PostgreSQLContainer.IMAGE);
@@ -82,9 +82,7 @@ public class PostgreSQLSchemaInitializationTest {
         String id = Util.getDigestOf("testSchemaIntializationDoesNotDeleteData");
         Fingerprint fingerprintSaved = new Fingerprint(null, "foo.jar", Util.fromHexString(id));
         fingerprintSaved.add(id, 3);
-        fingerprintSaved
-                .getPersistedFacets()
-                .add(new PostgreSQLFingerprintStorageTest.TestFacet(fingerprintSaved, 3, id));
+        fingerprintSaved.getPersistedFacets().add(new SqlFingerprintStorageTest.TestFacet(fingerprintSaved, 3, id));
 
         Fingerprint fingerprintLoaded = Fingerprint.load(id);
         assertThat(fingerprintLoaded, is(not(Matchers.nullValue())));
@@ -99,9 +97,7 @@ public class PostgreSQLSchemaInitializationTest {
         String id = Util.getDigestOf("testSchemaIntializationDoesNotDeleteData");
         Fingerprint fingerprintSaved = new Fingerprint(null, "foo.jar", Util.fromHexString(id));
         fingerprintSaved.add(id, 3);
-        fingerprintSaved
-                .getPersistedFacets()
-                .add(new PostgreSQLFingerprintStorageTest.TestFacet(fingerprintSaved, 3, id));
+        fingerprintSaved.getPersistedFacets().add(new SqlFingerprintStorageTest.TestFacet(fingerprintSaved, 3, id));
 
         Fingerprint fingerprintLoaded = Fingerprint.load(id);
         assertThat(fingerprintLoaded, is(not(Matchers.nullValue())));

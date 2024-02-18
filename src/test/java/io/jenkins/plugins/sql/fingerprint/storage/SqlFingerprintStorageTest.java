@@ -10,6 +10,7 @@ import static org.hamcrest.core.IsNot.not;
 import hudson.Util;
 import hudson.model.Fingerprint;
 import hudson.util.Secret;
+import io.jenkins.plugins.database.mariadb.MariaDbDatabase;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.Connection;
@@ -18,51 +19,88 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import jenkins.fingerprints.FingerprintStorage;
 import jenkins.fingerprints.GlobalFingerprintConfiguration;
 import jenkins.model.FingerprintFacet;
 import org.hamcrest.Matchers;
 import org.jenkinsci.main.modules.instance_identity.InstanceIdentity;
+import org.jenkinsci.plugins.database.AbstractRemoteDatabase;
 import org.jenkinsci.plugins.database.GlobalDatabaseConfiguration;
 import org.jenkinsci.plugins.database.postgresql.PostgreSQLDatabase;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
+import org.testcontainers.containers.MariaDBContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @WithJenkins
 @Testcontainers
-public class PostgreSQLFingerprintStorageTest {
+public class SqlFingerprintStorageTest {
+
+    // Tested databases
+    private static Stream<String> databases() {
+        return Stream.of("postgresql", "mariadb");
+    }
+
+    // Test containers
+    @Container
+    public PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.1");
 
     @Container
-    public PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(PostgreSQLContainer.IMAGE);
+    public MariaDBContainer<?> mariadb = new MariaDBContainer<>("mariadb:11.2.2");
 
-    public void setConfiguration() throws IOException {
-        PostgreSQLDatabase database = new PostgreSQLDatabase(
-                postgres.getHost() + ":" + postgres.getMappedPort(5432),
-                postgres.getDatabaseName(),
-                postgres.getUsername(),
-                Secret.fromString(postgres.getPassword()),
-                null);
-        database.setValidationQuery("SELECT 1");
+    public void setConfiguration(String type) throws IOException {
+
+        // The remote database configuration
+        AbstractRemoteDatabase database;
+
+        // PostgreSQL
+        if (type.equals("postgresql")) {
+            database = new PostgreSQLDatabase(
+                    postgres.getHost() + ":" + postgres.getMappedPort(5432),
+                    postgres.getDatabaseName(),
+                    postgres.getUsername(),
+                    Secret.fromString(postgres.getPassword()),
+                    null);
+            database.setValidationQuery("SELECT 1");
+        }
+
+        // MariaDB
+        else if (type.equals("mariadb")) {
+            database = new MariaDbDatabase(
+                    mariadb.getHost() + ":" + mariadb.getMappedPort(3306),
+                    mariadb.getDatabaseName(),
+                    mariadb.getUsername(),
+                    Secret.fromString(mariadb.getPassword()),
+                    null);
+            database.setValidationQuery("SELECT 1");
+        } else {
+            throw new IllegalArgumentException("Invalid database type");
+        }
+
+        // Set configuration
         GlobalDatabaseConfiguration.get().setDatabase(database);
         SqlFingerprintStorage postgreSQLFingerprintStorage = SqlFingerprintStorage.get();
         GlobalFingerprintConfiguration.get().setStorage(postgreSQLFingerprintStorage);
         DatabaseSchemaLoader.migrateSchema();
     }
 
-    @Test
-    public void checkFingerprintStorageIsPostgreSQL(JenkinsRule j) throws IOException {
-        setConfiguration();
+    @ParameterizedTest
+    @MethodSource("databases")
+    public void checkFingerprintStorage(String database, JenkinsRule j) throws IOException {
+        setConfiguration(database);
         Object fingerprintStorage = FingerprintStorage.get();
         assertThat(fingerprintStorage, instanceOf(SqlFingerprintStorage.class));
     }
 
     @Test
     public void testSave(JenkinsRule j) throws IOException, SQLException {
-        setConfiguration();
+        setConfiguration("postgres");
 
         String instanceId = Util.getDigestOf(
                 new ByteArrayInputStream(InstanceIdentity.get().getPublic().getEncoded()));
@@ -99,7 +137,7 @@ public class PostgreSQLFingerprintStorageTest {
 
     @Test
     public void roundTripEmptyFingerprint(JenkinsRule j) throws IOException {
-        setConfiguration();
+        setConfiguration("postgres");
         String id = Util.getDigestOf("roundTrip");
 
         Fingerprint fingerprintSaved = new Fingerprint(null, "foo.jar", Util.fromHexString(id));
@@ -111,7 +149,7 @@ public class PostgreSQLFingerprintStorageTest {
 
     @Test
     public void roundTripWithMultipleFingerprints(JenkinsRule j) throws IOException {
-        setConfiguration();
+        setConfiguration("postgres");
 
         String[] fingerprintIds = {
             Util.getDigestOf("id1"), Util.getDigestOf("id2"), Util.getDigestOf("id3"),
@@ -135,7 +173,7 @@ public class PostgreSQLFingerprintStorageTest {
 
     @Test
     public void roundTripWithMultipleUsages(JenkinsRule j) throws IOException {
-        setConfiguration();
+        setConfiguration("postgres");
         String id = Util.getDigestOf("roundTripWithUsages");
 
         Fingerprint fingerprintSaved = new Fingerprint(null, "foo.jar", Util.fromHexString(id));
@@ -170,7 +208,7 @@ public class PostgreSQLFingerprintStorageTest {
 
     @Test
     public void loadingNonExistentFingerprintShouldReturnNull(JenkinsRule j) throws IOException {
-        setConfiguration();
+        setConfiguration("postgres");
         String id = Util.getDigestOf("loadingNonExistentFingerprintShouldReturnNull");
         Fingerprint fingerprint = Fingerprint.load(id);
         assertThat(fingerprint, is(Matchers.nullValue()));
@@ -178,7 +216,7 @@ public class PostgreSQLFingerprintStorageTest {
 
     @Test
     public void shouldDeleteFingerprint(JenkinsRule j) throws IOException {
-        setConfiguration();
+        setConfiguration("postgres");
         String id = Util.getDigestOf("shouldDeleteFingerprint");
         new Fingerprint(null, "foo.jar", Util.fromHexString(id));
         Fingerprint.delete(id);
@@ -191,7 +229,7 @@ public class PostgreSQLFingerprintStorageTest {
 
     @Test
     public void testIsReady(JenkinsRule j) throws IOException {
-        setConfiguration();
+        setConfiguration("postgres");
         FingerprintStorage fingerprintStorage = FingerprintStorage.get();
         assertThat(fingerprintStorage.isReady(), is(false));
         String id = Util.getDigestOf("testIsReady");
