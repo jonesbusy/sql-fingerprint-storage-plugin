@@ -35,7 +35,7 @@
 
     <!-- Test dependencies version -->
     <testcontainer.version>1.21.0</testcontainer.version>
-    <configuration-as-code.version>1947.v7d33fe23569c</configuration-as-code.version>
+    <configuration-as-code.version>1958.vddc0d369b_e16</configuration-as-code.version>
 
   </properties>
 
