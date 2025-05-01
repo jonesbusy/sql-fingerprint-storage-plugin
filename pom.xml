@@ -60,7 +60,7 @@
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>flyway-api</artifactId>
-      <version>11.5.0-257.v6fd4cf1e9083</version>
+      <version>11.8.0-283.v6e1e6f0b_e461</version>
     </dependency>
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
