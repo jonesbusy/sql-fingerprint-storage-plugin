@@ -34,7 +34,7 @@
     <useBeta>true</useBeta>
 
     <!-- Test dependencies version -->
-    <testcontainer.version>1.21.3</testcontainer.version>
+    <testcontainer.version>1.21.4</testcontainer.version>
     <configuration-as-code.version>2006.v001a_2ca_6b_574</configuration-as-code.version>
 
   </properties>
